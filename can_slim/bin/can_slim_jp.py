@@ -77,20 +77,20 @@ def main():
                 session.commit()
         logger.info("finish update pl data, {0}symbols".format(str(len(pl_updating_symbol_list))))
                 
-        # technicalHandler = TechnicalHandler(logger, config.get("symbol", "symbol_for_rs_term"))
-        # technicalDbHandler = TechnicalDbHandler(session)
-        # stock_symbol_list = [symbol_tuple.symbol for symbol_tuple in technicalDbHandler.find_symbols_of_not_necessary_stock_updating(JpSymbolHandler.JP_SYMBOL, today)]
+        technicalHandler = TechnicalHandler(logger, config.get("symbol", "symbol_for_rs_term"))
+        technicalDbHandler = TechnicalDbHandler(session)
+        stock_symbol_list = [symbol_tuple.symbol for symbol_tuple in technicalDbHandler.find_symbols_of_not_necessary_stock_updating(JpSymbolHandler.JP_SYMBOL, today)]
         
-        # stock_updated_cnt = 0
-        # logger.info("start get stock data, all symbol count = {}".format(str(len(stock_symbol_list))))
-        # for stock_data in technicalHandler.get_termly_stock_data(stock_symbol_list):
-        #     if len(stock_data) > 0:
-        #         stock_updated_cnt += len(stock_data)
-        #         technicalDbHandler.upsert_symbol_stocks(stock_data)
-        #         session.commit()
-        #         logger.info("update stock data done {0}/{1}".format(str(stock_updated_cnt), str(len(stock_symbol_list))))
+        stock_updated_cnt = 0
+        logger.info("start get stock data, all symbol count = {}".format(str(len(stock_symbol_list))))
+        for stock_data in technicalHandler.get_termly_stock_data(stock_symbol_list):
+            if len(stock_data) > 0:
+                stock_updated_cnt += len(stock_data)
+                technicalDbHandler.upsert_symbol_stocks(stock_data)
+                session.commit()
+                logger.info("update stock data done {0}/{1}".format(str(stock_updated_cnt), str(len(stock_symbol_list))))
         
-        # logger.info("finish update stock data, {0}symbols".format(str(len(stock_symbol_list))))
+        logger.info("finish update stock data, {0}symbols".format(str(len(stock_symbol_list))))
         
         db.close_session()
     
