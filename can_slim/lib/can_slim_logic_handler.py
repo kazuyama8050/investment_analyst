@@ -5,29 +5,28 @@ class CanslimLogicHandler():
     quarterly_revenue_clear_rate = 25
     yearly_roe_clear_val = 17
     
-    def __init__(self, finance_df, stock_df):
-        self.finance_df = finance_df
-        self.stock_df = stock_df
+    def __init__(self, logger):
+        self.logger = logger
         
-    def mainLogic(self):
-        self.finance_df = self.finance_df.dropna()
-        self.finance_df["quarterly_eps_clear_seg"] = self.finance_df.apply(lambda row: self.get_clear_quarterly_eps_seg(row), axis=1)
-        self.finance_df["yearly_eps_clear_seg"] = self.finance_df.apply(lambda row: self.get_clear_yearly_eps_seg(row), axis=1)
-        self.finance_df["quarterly_revenue_clear_seg"] = self.finance_df.apply(lambda row: self.get_clear_quarterly_revenue_seg(row), axis=1)
-        return self.finance_df
+    def mainLogic(self, finance_df):
+        finance_df = finance_df.dropna()
+        finance_df["quarterly_eps_clear_seg"] = finance_df.apply(lambda row: self.get_clear_quarterly_eps_seg(row), axis=1)
+        finance_df["yearly_eps_clear_seg"] = finance_df.apply(lambda row: self.get_clear_yearly_eps_seg(row), axis=1)
+        finance_df["quarterly_revenue_clear_seg"] = finance_df.apply(lambda row: self.get_clear_quarterly_revenue_seg(row), axis=1)
+        return finance_df
     
-    def relative_strength_logic(self):
-        self.stock_df["c63"].fillna(0, inplace = True)
-        self.stock_df["c126"].fillna(0, inplace = True)
-        self.stock_df["c189"].fillna(0, inplace = True)
-        self.stock_df["c252"].fillna(0, inplace = True)
+    def relative_strength_logic(self, stock_df):
+        stock_df["c"].fillna(0, inplace = True)
+        stock_df["c63"].fillna(0, inplace = True)
+        stock_df["c126"].fillna(0, inplace = True)
+        stock_df["c189"].fillna(0, inplace = True)
+        stock_df["c252"].fillna(0, inplace = True)
         
-        self.stock_df["rs_index"] = self.stock_df.apply(lambda row: self.calc_relative_strength_index(row), axis=1)
-        rs_percentile_dict = self.get_relative_strength_percentile(self.stock_df)
-        print(rs_percentile_dict)
-        self.stock_df["rs"] = self.stock_df["rs_index"].apply(lambda x: self.calc_relative_strength(x, rs_percentile_dict))
+        stock_df["rs_index"] = stock_df.apply(lambda row: self.calc_relative_strength_index(row), axis=1)
+        rs_percentile_dict = self.get_relative_strength_percentile(stock_df)
+        stock_df["rs"] = stock_df["rs_index"].apply(lambda x: self.calc_relative_strength(x, rs_percentile_dict))
         
-        return self.stock_df
+        return stock_df
         
     def get_clear_quarterly_eps_seg(self, row):
         if self.calc_progress_rate(row["two_quarters_eps"], row["latest_quarter_eps"]) >= self.quarterly_eps_clear_rate:
@@ -86,5 +85,5 @@ class CanslimLogicHandler():
             
         
     def calc_progress_rate(self, before, after):
-        if before == 0: before=0.01
+        if before == 0: return 0.0
         return round((after - before) / before * 100, 2)

@@ -1,0 +1,20 @@
+version: "3.7"
+
+services:
+  ubuntu-server:
+    build: ./ubuntu22-04
+    image: kyamasaki/ubuntu
+    container_name: ubuntu-server
+    hostname: ubuntu-server
+    ports:
+      - "8082:82"
+    volumes:
+      - ~/investment_analyst:/work/investment_analyst
+      # - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    privileged: true
+    # tty: true
+    # stdin_open: true
+    # command: /sbin/init
+
+# 下記コマンドでdockerコンテナ起動 
+# docker run --privileged -d --name ubuntu-server -v ~/investment_analyst:/work/investment_analyst -v /sys/fs/cgroup:/sys/fs/cgroup:ro -p 8082:82 --hostname="ubuntu-server" -it kyamasaki/ubuntu:22.04 /sbin/init

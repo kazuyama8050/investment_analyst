@@ -3,6 +3,7 @@ from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 import pandas_datareader.data as web
 import yfinance as yf
+from yahoofinancials import YahooFinancials
 import investpy
 import traceback
 import numpy as np
@@ -28,6 +29,7 @@ one_year_ago = today - relativedelta(months=12)
 
 ## 営業日前基準（keyはdfカラムに相当） レラティブストレングス用
 rs_termly_dict = {
+    "c": today,
     "c63": three_month_ago,
     "c126": six_month_ago,
     "c189": nine_month_ago,
@@ -36,114 +38,130 @@ rs_termly_dict = {
 
 
 class TechnicalHandler:
-    def __init__(self, df, main_stock_df_filepath, symbol_for_rs_term):
-        self.df = df
-        self.main_stock_df_filepath = main_stock_df_filepath
-        self.symbol_for_rs_term = symbol_for_rs_term
+    def __init__(self, logger, symbol_for_rs_term):
+        self.logger = logger
         self.new_rs_termly_dict = self.get_termly_sales_date(symbol_for_rs_term)
         
-    def set_termly_stock_data(self):
-        
-        
-        target_symbol = ""
+    def get_termly_stock_data(self, symbol_list):
         try:
-            unique_symbol_list = list(self.df["symbol"].unique())
-            
-            unique_symbol_seg_list = []
-            unique_symbol_seg_str = ""
-            seg_cnt = 0
-            for unique_symbol in unique_symbol_list:
-                unique_symbol_seg_str = unique_symbol_seg_str + " " + unique_symbol
-                seg_cnt += 1
-                if seg_cnt >= 100:
-                    unique_symbol_seg_list.append(unique_symbol_seg_str)
-                    unique_symbol_seg_str = ""
-                    seg_cnt = 0
-                    
-            unique_symbol_seg_list.append(unique_symbol_seg_str)
-            unique_symbol_seg_str = ""
-            seg_cnt = 0
-                    
+            symbol_seg_list = []
+            symbol_seg = []
             cnt = 0
-            for symbol_seg in unique_symbol_seg_list:
+            for symbol in symbol_list:
+                symbol_seg.append(symbol)
                 cnt += 1
-                stock_close_data = self.download_stock_close_data(symbol_seg)
-                close_data_columns = list(stock_close_data.columns)
-                for col in close_data_columns:
-                    self.set_stock_data_for_multi_process(col, stock_close_data)
+                if cnt % 100 == 0:
+                    symbol_seg_list.append(symbol_seg)
+                    symbol_seg = []
                     
-                self.df.to_csv(self.main_stock_df_filepath, index = False)
-                print("{0}/{1} finished".format(str(cnt*100), str(len(unique_symbol_list))))
-            
+            symbol_seg_list.append(symbol_seg)
+            symbol_seg = []
+                        
+            cnt = 0
+            for symbols in symbol_seg_list:
+                stock_close_data = self.download_stock_close_data(symbols, DateFormat.date_to_string_format(one_year_ago), DateFormat.date_to_string_format(today))
+                results = []
+                with concurrent.futures.ProcessPoolExecutor(max_workers=2) as executor:
+                    while True:
+                        futures = [executor.submit(self.set_stock_data_for_multi_process, symbol, stock_close_data) for symbol in symbols]
+                        for future in concurrent.futures.as_completed(futures):
+                            result = future.result()
+                            cnt += 1
+                            results.append(result)
+                        
+                        if len(symbols) <= len(results): break
+                yield results
                 
-            return self.df
-                
+            yield results            
         except Exception as e:
-            print("Error symbol={0}, msg={1}".format(target_symbol, e))
-            print(traceback.format_exc())
+            self.logger.info(traceback.format_exc())
             
     def set_stock_data_for_multi_process(self, symbol, close_stock_datas):
+        ret_dict = {}
         try:
-            if symbol not in close_stock_datas.columns:
-                print("warning! not found stock data, symbol={}".format(symbol))
-                return False
+            ret_dict["symbol"] = symbol
+            ret_dict = self.set_default_stock_data(ret_dict)
+            if symbol not in close_stock_datas.keys():
+                self.logger.info("warning! not found stock data, symbol={}".format(symbol))
+                return ret_dict
             
             close_stock_data = close_stock_datas[symbol]
             
-            # if "Adj Close" not in stock_data.columns:
-            #     print("warning! not found 'Adj Close' column, symbol={}".format(symbol))
-            #     return False
+            if len(close_stock_data) == 0:
+                self.logger.info("warning! not found enough stock data, symbol={}".format(symbol))
+                return ret_dict
             
-            # close_stock_data = stock_data["Adj Close"]
-            if close_stock_data.isna().any():
-                print("warning! not found enough stock data, symbol={}".format(symbol))
-                return False
-            
-            self.df.at[symbol, "c"] = close_stock_data[-1]
-            
-            is_all_data = True
+            for k,d in self.new_rs_termly_dict.items():
+                if d not in close_stock_data.keys():
+                    self.logger.info("warning! not found enough stock data, symbol={0}, date={1}".format(symbol, d))
+                    return ret_dict
+                        
             for k, v in self.new_rs_termly_dict.items():
-                if self.get_close_stock_data(symbol, close_stock_data, k, v) == False:
-                    is_all_data = False
+                ret_dict = self.get_close_stock_data(ret_dict, close_stock_data, k, v)
             
-            if is_all_data == True:
-                self.df.at[symbol, "is_valid"] = 1
-            else:
-                self.df.at[symbol, "is_valid"] = 0
+            ret_dict["is_valid"] = 1
                 
-            return True
+            return ret_dict
                 
         except Exception as e:
-            print("Error symbol={0}, msg={1}".format(symbol, e))
-            print(traceback.format_exc())
+            self.logger.info("Error symbol={0}, msg={1}".format(symbol, e))
+            self.logger.info(traceback.format_exc())
             
-    def download_stock_close_data(self, symbol_seg):
-        stock_data = yf.download(symbol_seg, start=DateFormat.date_to_string_format(one_year_ago))
-        return stock_data["Adj Close"]
+    def set_default_stock_data(self, ret_dict):
+        ret_dict["is_valid"] = 0
+        ret_dict["c"] = 0.0
+        ret_dict["c63"] = 0.0
+        ret_dict["c126"] = 0.0
+        ret_dict["c189"] = 0.0
+        ret_dict["c252"] = 0.0
+        return ret_dict
+        
+            
+    def download_stock_close_data(self, symbols, before, after):
+        yahoo_financials = YahooFinancials(symbols)
+        stock_data = yahoo_financials.get_historical_price_data(before, after, "daily")
+        stock_dict = {}
+        for symbol,datas in stock_data.items():
+            stock_dict[symbol] = {}
+            if "prices" not in datas.keys(): continue
+            for price_datas in datas["prices"]:
+                if pd.isna(price_datas["adjclose"]) or int(price_datas["adjclose"]) <= 0: continue
+                stock_dict[symbol][price_datas["formatted_date"]] = int(price_datas["adjclose"])
+        return stock_dict
             
     
-    def get_close_stock_data(self, symbol, close_stock_datas, df_key, target_date):
-        if target_date not in close_stock_datas.index:
-            self.df.at[symbol, df_key] = 0
-            return False
+    def get_close_stock_data(self, ret_dict, close_stock_datas, key, target_date):
+        if target_date not in close_stock_datas.keys():
+            return ret_dict
         
-        self.df.at[symbol, df_key] = close_stock_datas.loc[target_date]
-        return True
+        ret_dict[key] = close_stock_datas[target_date]
+        return ret_dict
         
             
             
     def get_termly_sales_date(self, symbol):
-        stock_df = yf.download(symbol, start=DateFormat.date_to_string_format(one_year_ago))
+        stock_dict = self.download_stock_close_data(symbol, DateFormat.date_to_string_format(one_year_ago), DateFormat.date_to_string_format(today))
         new_rs_termly_dict = {}
         for k, v in rs_termly_dict.items():
-            new_rs_termly_dict[k] = self.get_nearly_sales_date(v, stock_df)
+            if k == "c":
+                new_rs_termly_dict[k] = self.get_nearly_latest_sales_date(v, stock_dict, symbol)
+            else:
+                new_rs_termly_dict[k] = self.get_nearly_sales_date(v, stock_dict, symbol)
 
         return new_rs_termly_dict
             
-    def get_nearly_sales_date(self, default_date, stock_df):
+    def get_nearly_sales_date(self, default_date, stock_dict, symbol):
         for i in range(0,8):
-            target_date = DateFormat.date_to_datetimeindex_format(default_date + relativedelta(days=i))
-            if target_date in stock_df.index:
+            target_date = DateFormat.date_to_string_format(default_date + relativedelta(days=i))
+            if target_date in stock_dict[symbol].keys():
+                return target_date
+            
+        raise("error!, cannot get nearly sales date")
+    
+    def get_nearly_latest_sales_date(self, today, stock_dict, symbol):
+        for i in range(0,8):
+            target_date = DateFormat.date_to_string_format(today - relativedelta(days=i))
+            if target_date in stock_dict[symbol].keys():
                 return target_date
             
         raise("error!, cannot get nearly sales date")
