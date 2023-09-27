@@ -43,7 +43,7 @@ class FinanceHandler:
                         result = future.result()
                         results.append(result)
                         
-                        if len(results) >= 2:
+                        if len(results) >= 100:
                             yield results
                             results = []
                         
