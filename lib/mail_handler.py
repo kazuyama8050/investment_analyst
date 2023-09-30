@@ -11,16 +11,17 @@ class MailHandler():
     @staticmethod
     def send_mail(to_address, subject, mail_body):
         try:
-            msg = MIMEMultipart()
+            msg = MIMEText(mail_body)
             msg['Subject'] = subject
-            msg['From'] = self.FROM_ADDRESS
+            msg['From'] = MailHandler.FROM_ADDRESS
             msg['To'] = to_address
-            msg.attach(MIMEText(email_body, "plain"))
-            
+    
             smtpobj = smtplib.SMTP('smtp.gmail.com', 587)
+            smtpobj.ehlo()
             smtpobj.starttls()
-            smtpobj.login(self.FROM_ADDRESS, self.MY_PASSWORD)
-            smtpobj.sendmail(self.FROM_ADDRESS, to_address, msg.as_string())
+            smtpobj.ehlo()
+            smtpobj.login(MailHandler.FROM_ADDRESS, MailHandler.MY_PASSWORD)
+            smtpobj.sendmail(MailHandler.FROM_ADDRESS, to_address, msg.as_string())
             smtpobj.close()
             return True
         except:
