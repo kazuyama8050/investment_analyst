@@ -1,0 +1,14 @@
+CANSLIM ロジック結果
+実行日：{date}
+
+ファイナンス分析 & レラティブストレングス　（緩め）
+{finance_and_rs_loose_results}
+
+ファイナンス分析 & レラティブストレングス　（キツめ）
+{finance_and_rs_tight_result}
+
+ファイナンス分析　（緩め）
+{finance_loose_result}
+
+ファイナンス分析　（キツめ）
+{finance_tight_result}
