@@ -11,7 +11,7 @@ class FinanceDbHandler():
                     select ss.symbol from investment_analyst.symbols ss
                     where ss.country = '{country}' and ss.symbol not in (
                         select sf.symbol from investment_analyst.symbol_finances sf
-                        where sf.latest_closing_date < '{three_month_ago}'
+                        where sf.latest_closing_date >= '{three_month_ago}'
                     )
             ''')
         return self.db.execute(sql).fetchall()

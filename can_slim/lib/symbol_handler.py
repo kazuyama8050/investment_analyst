@@ -16,6 +16,20 @@ class SymbolHandler():
                     where country = '{country}'
                 ''')
         return self.db.execute(sql).fetchall()
+    
+    def find_symbol_infos_by_symbols(self, symbol_list):
+        symbol_seg = ""
+        for symbol in symbol_list:
+            if symbol_seg != "":
+                symbol_seg = symbol_seg + ","
+            symbol_seg = symbol_seg + "'" + symbol + "'"
+            
+        sql = text(f'''
+                    select symbol, name
+                    from investment_analyst.symbols
+                    where symbol in ({symbol_seg})
+            ''')
+        return self.db.execute(sql).fetchall()
 
     def update_symbol_list(self, symbol_info_list):
         sql = text('''

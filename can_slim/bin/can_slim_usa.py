@@ -33,7 +33,18 @@ from usa_symbol_handler import UsaSymbolHandler
 from finance_handler import FinanceHandler
 from technical_handler import TechnicalHandler
 
-options = BatchSettings.get_options()
+UPDATE_SYMBOL_EXECUTOR = "symbol"
+UPDATE_FINANCE_EXECUTOR = "finance"
+UPDATE_STOCK_EXECUTOR = "stock"
+
+def get_options():
+    usage = "usage: %prog (Argument-1) [options]"
+    parser = ArgumentParser(usage=usage)
+    parser.add_argument("-E", "--env", dest="env", action="store", help="env", default="dev", type=str)
+    parser.add_argument("-t", "--target", dest="target", action="store", help="target", default=f"{UPDATE_SYMBOL_EXECUTOR},{UPDATE_FINANCE_EXECUTOR},{UPDATE_STOCK_EXECUTOR}", type=str)
+    return parser.parse_args()
+
+options = get_options()
 
 config = configparser.ConfigParser()
 config.read(os.path.join(app_dir, "conf/can_slim_usa.conf"))
@@ -49,43 +60,54 @@ default_report_date = DateFormat.string_to_date_format("1970-01-01")
 
 def main():
     try:
+        target_list = options.target.split(",")
+        if len(target_list) == 0:
+            logger.info("not selected target")
+            sys.exit()
+            
         db = get_db_connection(credentials_config, "investment_analyst")
         session = db.get_session()
         
         usaSymbolHandler = UsaSymbolHandler(config)
         symbolHandler = SymbolHandler(session)
-        symbol_info_list = usaSymbolHandler.get_all_company_symbol()
-        symbolHandler.update_symbol_list(symbol_info_list)
-        session.commit()
+        
+        if UPDATE_SYMBOL_EXECUTOR in target_list:
+            logger.info("start upsert usa symbols")
+            symbol_info_list = usaSymbolHandler.get_all_company_symbol()
+            symbolHandler.update_symbol_list(symbol_info_list)
+            session.commit()
+            logger.info("upsert usa symbols done count={}".format(len(symbol_info_list)))
 
         financeHandler = FinanceHandler(logger)
         financeDbHandler = FinanceDbHandler(session)
-        pl_updating_symbol_list = [symbol_tuple.symbol for symbol_tuple in financeDbHandler.find_symbols_of_not_necessary_pl_updating(UsaSymbolHandler.USA_SYMBOL, three_month_ago)]
-
-        pl_updated_cnt = 0
-        logger.info("symbol count = {0}".format(str(len(pl_updating_symbol_list))))
-        for pl_data in financeHandler.get_pl_data(pl_updating_symbol_list):
-            if len(pl_data) > 0:
-                pl_updated_cnt += len(pl_data)
-                logger.info("update pl data done {0}/{1}".format(str(pl_updated_cnt), str(len(pl_updating_symbol_list))))
-                financeDbHandler.upsert_symbol_finances(pl_data)
-                session.commit()
-        logger.info("finish update pl data, {0}symbols".format(str(len(pl_updating_symbol_list))))
+        
+        if UPDATE_FINANCE_EXECUTOR in target_list:
+            pl_updating_symbol_list = [symbol_tuple.symbol for symbol_tuple in financeDbHandler.find_symbols_of_not_necessary_pl_updating(UsaSymbolHandler.USA_SYMBOL, three_month_ago)]
+            pl_updated_cnt = 0
+            logger.info("start update pl data count = {0}".format(str(len(pl_updating_symbol_list))))
+            for pl_data in financeHandler.get_pl_data(pl_updating_symbol_list):
+                if len(pl_data) > 0:
+                    pl_updated_cnt += len(pl_data)
+                    logger.info("update pl data done {0}/{1}".format(str(pl_updated_cnt), str(len(pl_updating_symbol_list))))
+                    financeDbHandler.upsert_symbol_finances(pl_data)
+                    session.commit()
+            logger.info("finish update pl data, {0}symbols".format(str(len(pl_updating_symbol_list))))
                 
         technicalHandler = TechnicalHandler(logger, config.get("symbol", "symbol_for_rs_term"))
         technicalDbHandler = TechnicalDbHandler(session)
-        stock_symbol_list = [symbol_tuple.symbol for symbol_tuple in technicalDbHandler.find_symbols_of_not_necessary_stock_updating(UsaSymbolHandler.USA_SYMBOL, yesterday)]
         
-        stock_updated_cnt = 0
-        logger.info("start get stock data, all symbol count = {}".format(str(len(stock_symbol_list))))
-        for stock_data in technicalHandler.get_termly_stock_data(stock_symbol_list):
-            if len(stock_data) > 0:
-                stock_updated_cnt += len(stock_data)
-                technicalDbHandler.upsert_symbol_stocks(stock_data)
-                session.commit()
-                logger.info("update stock data done {0}/{1}".format(str(stock_updated_cnt), str(len(stock_symbol_list))))
-        
-        logger.info("finish update stock data, {0}symbols".format(str(len(stock_symbol_list))))
+        if UPDATE_STOCK_EXECUTOR in target_list:
+            stock_symbol_list = [symbol_tuple.symbol for symbol_tuple in technicalDbHandler.find_symbols_of_not_necessary_stock_updating(UsaSymbolHandler.USA_SYMBOL, yesterday)]
+            stock_updated_cnt = 0
+            logger.info("start update stock data, all symbol count = {}".format(str(len(stock_symbol_list))))
+            for stock_data in technicalHandler.get_termly_stock_data(stock_symbol_list):
+                if len(stock_data) > 0:
+                    stock_updated_cnt += len(stock_data)
+                    technicalDbHandler.upsert_symbol_stocks(stock_data)
+                    session.commit()
+                    logger.info("update stock data done {0}/{1}".format(str(stock_updated_cnt), str(len(stock_symbol_list))))
+            
+            logger.info("finish update stock data, {0}symbols".format(str(len(stock_symbol_list))))
         
         db.close_session()
     
@@ -94,13 +116,8 @@ def main():
         db.close_session()
         raise("Error msg={}".format(e))
         logger.info(traceback.format_exc())
+        sys.exit()
 
-
-def get_options():
-    usage = "usage: %prog (Argument-1) [options]"
-    parser = ArgumentParser(usage=usage)
-    parser.add_argument("-E", "--env", dest="env", action="store", help="env", default="dev", type=str)
-    return parser.parse_args()
 
 def get_db_connection(db_config, db_name):
     db = DbHandler().get_instance()
