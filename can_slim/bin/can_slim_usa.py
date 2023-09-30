@@ -12,6 +12,7 @@ from dateutil.relativedelta import relativedelta
 import os, sys
 import multiprocessing
 import configparser
+from argparse import ArgumentParser
 warnings.simplefilter('ignore')
 plt.rcParams["font.size"] = 12
 plt.rcParams['figure.figsize'] = (32.0, 10.0)
@@ -31,6 +32,7 @@ from date_format import DateFormat
 from symbol_handler import SymbolHandler
 from usa_symbol_handler import UsaSymbolHandler
 from finance_handler import FinanceHandler
+from finance_db_handler import FinanceDbHandler
 from technical_handler import TechnicalHandler
 
 UPDATE_SYMBOL_EXECUTOR = "symbol"
@@ -42,6 +44,7 @@ def get_options():
     parser = ArgumentParser(usage=usage)
     parser.add_argument("-E", "--env", dest="env", action="store", help="env", default="dev", type=str)
     parser.add_argument("-t", "--target", dest="target", action="store", help="target", default=f"{UPDATE_SYMBOL_EXECUTOR},{UPDATE_FINANCE_EXECUTOR},{UPDATE_STOCK_EXECUTOR}", type=str)
+    parser.add_argument("-p", "--process_num", dest="process_num", action="store", help="process_num", default=1, type=int)
     return parser.parse_args()
 
 options = get_options()
@@ -85,7 +88,7 @@ def main():
             pl_updating_symbol_list = [symbol_tuple.symbol for symbol_tuple in financeDbHandler.find_symbols_of_not_necessary_pl_updating(UsaSymbolHandler.USA_SYMBOL, three_month_ago)]
             pl_updated_cnt = 0
             logger.info("start update pl data count = {0}".format(str(len(pl_updating_symbol_list))))
-            for pl_data in financeHandler.get_pl_data(pl_updating_symbol_list):
+            for pl_data in financeHandler.get_pl_data(pl_updating_symbol_list, options.process_num):
                 if len(pl_data) > 0:
                     pl_updated_cnt += len(pl_data)
                     logger.info("update pl data done {0}/{1}".format(str(pl_updated_cnt), str(len(pl_updating_symbol_list))))
@@ -100,7 +103,7 @@ def main():
             stock_symbol_list = [symbol_tuple.symbol for symbol_tuple in technicalDbHandler.find_symbols_of_not_necessary_stock_updating(UsaSymbolHandler.USA_SYMBOL, yesterday)]
             stock_updated_cnt = 0
             logger.info("start update stock data, all symbol count = {}".format(str(len(stock_symbol_list))))
-            for stock_data in technicalHandler.get_termly_stock_data(stock_symbol_list):
+            for stock_data in technicalHandler.get_termly_stock_data(stock_symbol_list, options.process_num):
                 if len(stock_data) > 0:
                     stock_updated_cnt += len(stock_data)
                     technicalDbHandler.upsert_symbol_stocks(stock_data)

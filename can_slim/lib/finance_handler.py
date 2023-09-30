@@ -31,11 +31,11 @@ class FinanceHandler:
         self.logger = logger
         self.default_report_date = DateFormat.string_to_date_format("1970-01-01")
         
-    def get_pl_data(self, symbol_list):
+    def get_pl_data(self, symbol_list, process_num=1):
         try:
             results = []
             cnt = 0
-            with concurrent.futures.ProcessPoolExecutor(max_workers=2) as executor:
+            with concurrent.futures.ProcessPoolExecutor(max_workers=process_num) as executor:
                 while True:
                     futures = [executor.submit(self.set_necessary_pl_data_by_multi_process, symbol) for symbol in symbol_list]
                     for future in concurrent.futures.as_completed(futures):

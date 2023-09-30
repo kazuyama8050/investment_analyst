@@ -42,7 +42,7 @@ class TechnicalHandler:
         self.logger = logger
         self.new_rs_termly_dict = self.get_termly_sales_date(symbol_for_rs_term)
         
-    def get_termly_stock_data(self, symbol_list):
+    def get_termly_stock_data(self, symbol_list, process_num=1):
         try:
             symbol_seg_list = []
             symbol_seg = []
@@ -61,7 +61,7 @@ class TechnicalHandler:
             for symbols in symbol_seg_list:
                 stock_close_data = self.download_stock_close_data(symbols, DateFormat.date_to_string_format(one_year_ago), DateFormat.date_to_string_format(today))
                 results = []
-                with concurrent.futures.ProcessPoolExecutor(max_workers=2) as executor:
+                with concurrent.futures.ProcessPoolExecutor(max_workers=process_num) as executor:
                     while True:
                         futures = [executor.submit(self.set_stock_data_for_multi_process, symbol, stock_close_data) for symbol in symbols]
                         for future in concurrent.futures.as_completed(futures):
