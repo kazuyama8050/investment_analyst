@@ -85,7 +85,7 @@ def main():
         financeDbHandler = FinanceDbHandler(session)
         
         if UPDATE_FINANCE_EXECUTOR in target_list:
-            pl_updating_symbol_list = [symbol_tuple.symbol for symbol_tuple in financeDbHandler.find_symbols_of_not_necessary_pl_updating(UsaSymbolHandler.USA_SYMBOL, three_month_ago)]
+            pl_updating_symbol_list = [symbol_tuple.symbol for symbol_tuple in financeDbHandler.find_symbols_of_not_necessary_pl_updating(UsaSymbolHandler.USA_SYMBOL)]
             pl_updated_cnt = 0
             logger.info("start update pl data count = {0}".format(str(len(pl_updating_symbol_list))))
             for pl_data in financeHandler.get_pl_data(pl_updating_symbol_list, options.process_num):

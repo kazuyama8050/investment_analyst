@@ -6,12 +6,12 @@ class FinanceDbHandler():
     def __init__(self, db):
         self.db = db
         
-    def find_symbols_of_not_necessary_pl_updating(self, country, three_month_ago):
+    def find_symbols_of_not_necessary_pl_updating(self, country):
         sql = text(f'''
                     select ss.symbol from investment_analyst.symbols ss
                     where ss.country = '{country}' and ss.symbol not in (
                         select sf.symbol from investment_analyst.symbol_finances sf
-                        where sf.latest_closing_date >= '{three_month_ago}'
+                        where sf.latest_closing_date >= NOW() - INTERVAL 4 MONTH
                     )
             ''')
         return self.db.execute(sql).fetchall()
