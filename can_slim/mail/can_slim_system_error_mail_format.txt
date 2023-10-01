@@ -1,0 +1,7 @@
+CANSLIM 運用エラー通知
+実行日：{date}
+
+app_name：{app_name}
+
+traceback：
+{error_msg}

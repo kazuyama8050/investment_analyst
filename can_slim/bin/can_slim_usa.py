@@ -119,6 +119,15 @@ def main():
         db.close_session()
         raise("Error msg={}".format(e))
         logger.info(traceback.format_exc())
+        
+        mail_body_template = MailHandler.read_mail_body_template(os.path.join(app_dir, "mail", "can_slim_system_error_mail_format.txt"))
+        mail_body = mail_body_template.format(
+            date = today,
+            app_name = app_home,
+            error_msg = traceback.format_exc()
+        )
+        MailHandler.send_mail(credentials_config.get("mail", "to_address"), "CANSLIMシステムエラー通知", mail_body)
+        
         sys.exit()
 
 
