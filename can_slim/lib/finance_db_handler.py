@@ -22,8 +22,8 @@ class FinanceDbHandler():
                     sf.four_quarters_revenue, sf.three_quarters_revenue, sf.two_quarters_revenue, sf.latest_quarter_revenue, 
                     sf.four_years_eps, sf.three_years_eps, sf.two_years_eps, sf.latest_year_eps, 
                     sf.latest_year_roe 
-                    from investment_analyst.symbol_finances sf
-                    left join investment_analyst.symbols ss
+                    from investment_analyst.symbols ss
+                    left join investment_analyst.symbol_finances sf
                     on sf.symbol = ss.symbol and ss.country = '{country}'
                     where sf.is_valid = {self.FINANCE_VALID}
             ''')

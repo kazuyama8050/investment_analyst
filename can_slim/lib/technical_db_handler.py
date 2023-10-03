@@ -20,8 +20,8 @@ class TechnicalDbHandler():
         sql = text(f'''
                     select sss.symbol, sss.c, sss.c63, 
                     sss.c126, sss.c189, sss.c252
-                    from investment_analyst.symbol_stocks sss
-                    left join investment_analyst.symbols ss
+                    from investment_analyst.symbols ss
+                    left join investment_analyst.symbol_stocks sss
                     on sss.symbol = ss.symbol and ss.country = '{country}'
                     where sss.is_valid = {self.STOCK_VALID}
             ''')
