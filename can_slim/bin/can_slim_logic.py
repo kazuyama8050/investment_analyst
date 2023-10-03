@@ -11,6 +11,7 @@ from dateutil.relativedelta import relativedelta
 import os, sys
 import configparser
 import traceback
+from argparse import ArgumentParser
 
 current_script_path = os.path.abspath(__file__)
 app_home = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
@@ -30,7 +31,14 @@ from jp_symbol_handler import JpSymbolHandler
 from symbol_handler import SymbolHandler
 from mail_handler import MailHandler
 
-options = BatchSettings.get_options()
+def get_options():
+    usage = "usage: %prog (Argument-1) [options]"
+    parser = ArgumentParser(usage=usage)
+    parser.add_argument("-E", "--env", dest="env", action="store", help="env", default="dev", type=str)
+    parser.add_argument("-c", "--country", dest="country", action="store", help="country", default=JpSymbolHandler.JP_SYMBOL, type=str)
+    return parser.parse_args()
+
+options = get_options()
 
 config_usa = configparser.ConfigParser()
 config_usa.read(os.path.join(app_dir, "conf/can_slim_usa.conf"))
@@ -53,11 +61,19 @@ def main():
         canslimLogicHandler = CanslimLogicHandler(logger)
         symbolHandler = SymbolHandler(session)
         
-        finance_data = financeDbHandler.find_valid_finances(JpSymbolHandler.JP_SYMBOL)
+        finance_data = financeDbHandler.find_valid_finances(options.country)
+        if len(finance_data) == 0:
+            logger.info("not found valid finance data, option.country={}".format(options.country))
+            return
+        
         finance_df = pd.DataFrame(finance_data)
         calced_finance_df = canslimLogicHandler.mainLogic(finance_df)
         
-        stock_data = technicalDbHandler.find_valid_stocks(JpSymbolHandler.JP_SYMBOL)
+        stock_data = technicalDbHandler.find_valid_stocks(options.country)
+        if len(stock_data) == 0:
+            logger.info("not found valid stock data, option.country={}".format(options.country))
+            return
+        
         stock_df = pd.DataFrame(stock_data)
         calced_stock_df = canslimLogicHandler.relative_strength_logic(stock_df)
         
@@ -73,7 +89,6 @@ def main():
             
         if len(symbol_infos) == 0:
             logger.info("no symbol match of cansllim logic")
-            return
         
         finance_loose_result_symbol_infos = get_symbol_info_for_mail_template(finance_loose_result_symbols, symbol_infos)
         finance_and_rs_loose_result_symbol_infos = get_symbol_info_for_mail_template(finance_and_rs_loose_result_symbols, symbol_infos)
