@@ -11,6 +11,7 @@ from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 import os, sys
 import multiprocessing
+import traceback
 import configparser
 from argparse import ArgumentParser
 warnings.simplefilter('ignore')
