@@ -123,6 +123,7 @@ class TechnicalHandler:
         stock_dict = {}
         for symbol,datas in stock_data.items():
             stock_dict[symbol] = {}
+            if datas is None: continue
             if "prices" not in datas.keys(): continue
             for price_datas in datas["prices"]:
                 if pd.isna(price_datas["adjclose"]) or int(price_datas["adjclose"]) <= 0: continue
