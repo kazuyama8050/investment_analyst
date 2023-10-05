@@ -36,6 +36,7 @@ from finance_handler import FinanceHandler
 from finance_db_handler import FinanceDbHandler
 from technical_handler import TechnicalHandler
 from technical_db_handler import TechnicalDbHandler
+from mail_handler import MailHandler
 
 
 UPDATE_SYMBOL_EXECUTOR = "symbol"
