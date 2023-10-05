@@ -145,7 +145,7 @@ if __name__ == "__main__":
     from yahoofinancials import YahooFinancials
     symbols = ["AAPL", "PLTR", "SE"]
     yahoo_financials = YahooFinancials(symbols)
-    stock_data = yahoo_financials.get_historical_price_data("2023-09-25", "daily")
+    stock_data = yahoo_financials.get_historical_price_data("2023-09-25", "2023-10-04", "daily")
     print(stock_data)
     logger.info("end can_slim_usa")
 
