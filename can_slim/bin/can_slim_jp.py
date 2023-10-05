@@ -61,7 +61,7 @@ credentials_config.read(os.path.join(app_dir, "conf/credentials-" + options.env 
 logger = BatchSettings.get_logger(app_dir, app_home)
 
 today = datetime.today().date()
-yesterday = today - relativedelta(days=3)
+yesterday = today - relativedelta(days=1)
 three_month_ago = today - relativedelta(months=3)
 three_month_later = today + relativedelta(months=3)
 default_report_date = DateFormat.string_to_date_format("1970-01-01")
@@ -107,7 +107,7 @@ def main():
         technicalDbHandler = TechnicalDbHandler(session)
         
         if UPDATE_STOCK_EXECUTOR in target_list:
-            stock_symbol_list = [symbol_tuple.symbol for symbol_tuple in technicalDbHandler.find_symbols_of_not_necessary_stock_updating(JpSymbolHandler.JP_SYMBOL, today)]
+            stock_symbol_list = [symbol_tuple.symbol for symbol_tuple in symbolHandler.find_symbol_list_by_country(JpSymbolHandler.JP_SYMBOL)]
             stock_updated_cnt = 0
             logger.info("start update stock data, all symbol count = {}".format(str(len(stock_symbol_list))))
             for stock_data in technicalHandler.get_termly_stock_data(stock_symbol_list, options.process_num):

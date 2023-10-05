@@ -103,7 +103,7 @@ def main():
         technicalDbHandler = TechnicalDbHandler(session)
         
         if UPDATE_STOCK_EXECUTOR in target_list:
-            stock_symbol_list = [symbol_tuple.symbol for symbol_tuple in technicalDbHandler.find_symbols_of_not_necessary_stock_updating(UsaSymbolHandler.USA_SYMBOL, yesterday)]
+            stock_symbol_list = [symbol_tuple.symbol for symbol_tuple in symbolHandler.find_symbol_list_by_country(UsaSymbolHandler.USA_SYMBOL)]
             stock_updated_cnt = 0
             logger.info("start update stock data, all symbol count = {}".format(str(len(stock_symbol_list))))
             for stock_data in technicalHandler.get_termly_stock_data(stock_symbol_list, options.process_num):
