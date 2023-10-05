@@ -120,7 +120,7 @@ def main():
         )
         MailHandler.send_mail(credentials_config.get("mail", "to_address"), "CANSLIMシステムエラー通知", mail_body)
         
-        sys.exit()
+        sys.exit(1)
         
 def get_symbol_info_for_mail_template(symbol_list, symbol_infos):
     necessary_symbol_info = ""

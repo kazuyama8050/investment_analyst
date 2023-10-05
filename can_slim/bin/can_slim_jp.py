@@ -123,7 +123,6 @@ def main():
     except Exception as e:
         session.rollback()
         db.close_session()
-        raise("Error msg={}".format(e))
         logger.info(traceback.format_exc())
         
         mail_body_template = MailHandler.read_mail_body_template(os.path.join(app_dir, "mail", "can_slim_system_error_mail_format.txt"))
@@ -134,7 +133,7 @@ def main():
         )
         MailHandler.send_mail(credentials_config.get("mail", "to_address"), "CANSLIMシステムエラー通知", mail_body)
         
-        sys.exit()
+        sys.exit(1)
         
 
 def get_db_connection(db_config, db_name):
