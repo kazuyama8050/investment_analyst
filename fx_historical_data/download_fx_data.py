@@ -5,7 +5,7 @@ import shutil
 from histdata import download_hist_data as dl
 from histdata.api import Platform as P, TimeFrame as TF
 
-import sys
+import sys,traceback
 args = sys.argv
 
 SYMBOL = args[1]
@@ -17,14 +17,17 @@ term_mapping = {
     "M1": TF.ONE_MINUTE
 }
 
-if os.path.exists("./{}".format(SYMBOL)):
-    os.mkdir("./{}".format(SYMBOL))
+try:
+    if os.path.exists("./{}".format(SYMBOL)):
+        os.mkdir("./{}".format(SYMBOL))
 
-for year in range(START_YEAR,END_YEAR+1):
-    dl(year=year, month=None, pair=SYMBOL, platform=P.GENERIC_ASCII, time_frame=term_mapping[TERM])
+    for year in range(START_YEAR,END_YEAR+1):
+        dl(year=year, month=None, pair=SYMBOL, platform=P.GENERIC_ASCII, time_frame=term_mapping[TERM])
 
-    file_prefix = "DAT_ASCII_{0}_{1}_{2}".format(SYMBOL.upper(), TERM, year)
-    shutil.unpack_archive(file_prefix+".zip")
-    shutil.move(file_prefix+".csv", "./{}/".format(SYMBOL))
-    os.remove(file_prefix+".txt")
-    os.remove(file_prefix+".zip")
+        file_prefix = "DAT_ASCII_{0}_{1}_{2}".format(SYMBOL.upper(), TERM, year)
+        shutil.unpack_archive(file_prefix+".zip")
+        shutil.move(file_prefix+".csv", "./{}/".format(SYMBOL))
+        os.remove(file_prefix+".txt")
+        os.remove(file_prefix+".zip")
+except Exception as e:
+    print(traceback.format_exc())
