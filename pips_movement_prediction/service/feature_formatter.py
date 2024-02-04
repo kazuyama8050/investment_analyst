@@ -16,7 +16,7 @@ class FeatureFormatter():
         
     def read_history_data(self, before_year, after_year):
         df = pd.DataFrame(columns=["datetime","close"])
-        for yyyy in range(before_year, after_year):
+        for yyyy in range(before_year, after_year+1):
             df_temp = self.read_history_data_by_year(yyyy)
             df = pd.concat([df, df_temp], ignore_index=True)
             

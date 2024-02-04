@@ -4,6 +4,7 @@ import os,io,sys
 import configparser
 import traceback
 from sklearn.model_selection import train_test_split
+from argparse import ArgumentParser
 
 current_script_path = os.path.abspath(__file__)
 app_home = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
@@ -23,11 +24,32 @@ config.read(os.path.join(app_dir, "conf/pips_movement_prediction.conf"))
 
 logger = BatchSettings.get_logger(app_dir, app_home)
 
-SYMBOL = "USDJPY"
-TRAIN_DATA_TERM = "M1"
-BASE_PIPS = 0.2
-TRAIN_DATA_START_YEAR = 2015
-TRAIN_DATA_END_YEAR = 2022
+def get_options():
+    usage = "usage: %prog (Argument-1) [options]"
+    parser = ArgumentParser(usage=usage)
+    parser.add_argument("-s", "--symbol", dest="symbol", action="store", help="symbol", default="USDJPY", type=str)
+    parser.add_argument("-t", "--term", dest="term", action="store", help="term", default="M1", type=str)
+    parser.add_argument("-p", "--base_pips", dest="base_pips", action="store", help="base_pips", default=0.2, type=float)
+    parser.add_argument("-f", "--from_year", dest="from_year", action="store", help="from_year", required=True, type=int)
+    parser.add_argument("-u", "--until_year", dest="until_year", action="store", help="until_year", required=True, type=int)
+    parser.add_argument("-m", "--model_type", dest="model_type", action="store", help="model_type", default="decision_tree", type=str)
+    parser.add_argument("-c", "--script_mode", dest="script_mode", action="store", help="script_mode", default=1, type=int)
+    return parser.parse_args()
+
+options = get_options()
+
+SYMBOL = options.symbol
+TRAIN_DATA_TERM = options.term
+BASE_PIPS = options.base_pips
+TRAIN_DATA_START_YEAR = options.from_year
+TRAIN_DATA_END_YEAR = options.until_year
+SCRIPT_MODE = options.script_mode
+
+model_types = {
+    "decision_tree": "決定木",
+    "random_forest": "ランダムフォレスト"
+}
+MODEL_TYPE = options.model_type
 
 MOVING_HISTORY_TERM_LIST = [10, 25, 50, 75, 125, 200]
 MOVING_AVERAGE_TERM_LIST = [10, 25, 50, 75, 125, 200]
@@ -40,6 +62,9 @@ MACD_SIGNAL_WINDOW_LIST = [9, 9, 9]
 
 def main():
     try:
+        if options.model_type not in model_types.keys():
+            raise Exception("invalid model type")
+        
         featureFormatter = FeatureFormatter(
             SYMBOL, TRAIN_DATA_TERM, os.path.join(project_dir, config.get("history_data", "dirname").format(symbol=SYMBOL.lower())) 
         )
@@ -65,12 +90,19 @@ def main():
         X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
         
         logger.info("Model Traning Start.")
-        model = DecisionTree(logger, os.path.join(app_dir, config.get("model", "random_forest_model_filepath")))
+        if MODEL_TYPE == "decision_tree":
+            model = DecisionTree(logger, os.path.join(app_dir, config.get("model", "decision_tree_model_filepath")))
+        elif MODEL_TYPE == "random_forest":
+            model = RandomForest(logger, os.path.join(app_dir, config.get("model", "random_forest_model_filepath")))
         trained_model = model.train(X_train, y_train)
         logger.info("Model Traning Done.")
         logger.info("Prediction Start.")
         model.prediction(trained_model, X_test, y_test)
-        model.write_model(trained_model)
+        
+        if SCRIPT_MODE == 2:
+            model.write_model(trained_model)
+            logger.info("Write Trained Model")
+            
         logger.info("Prediction Done.")
         
     except Exception as e:
@@ -78,12 +110,12 @@ def main():
         logger.info(traceback.print_exc())
         sys.exit(1)
     
-def only_prediction(prediction_data_year):
+def only_prediction():
     featureFormatter = FeatureFormatter(
         SYMBOL, TRAIN_DATA_TERM, os.path.join(project_dir, config.get("history_data", "dirname").format(symbol=SYMBOL.lower())) 
     )
-    history_df = featureFormatter.read_history_data_by_year(prediction_data_year)
-    logger.info("Read Historical Data Of {0} Done. size: {1}".format(prediction_data_year, len(history_df)))
+    history_df = featureFormatter.read_history_data(TRAIN_DATA_START_YEAR, TRAIN_DATA_END_YEAR)
+    logger.info("Read Historical Data From {0} To {1} Done. size: {2}".format(TRAIN_DATA_START_YEAR, TRAIN_DATA_END_YEAR, len(history_df)))
     
     """
     特徴量を算出
@@ -102,7 +134,10 @@ def only_prediction(prediction_data_year):
     X = history_df[train_columns]
     Y = history_df[[objective_column]]
     
-    model = RandomForest(logger, os.path.join(app_dir, config.get("model", "random_forest_model_filepath")))
+    if MODEL_TYPE == "decision_tree":
+        model = DecisionTree(logger, os.path.join(app_dir, config.get("model", "decision_tree_model_filepath")))
+    elif MODEL_TYPE == "random_forest":
+        model = RandomForest(logger, os.path.join(app_dir, config.get("model", "random_forest_model_filepath")))
     trained_model = model.load_model()
     logger.info("Model Load Done.")
     logger.info("Prediction Start.")
@@ -155,6 +190,8 @@ def _get_train_columns():
 
 if __name__ == "__main__":
     logger.info("start create_model")
-    # main()
-    only_prediction(2023)
+    if SCRIPT_MODE in [1,2]:
+        main()
+    elif SCRIPT_MODE == 3:
+        only_prediction()
     logger.info("end create_model")

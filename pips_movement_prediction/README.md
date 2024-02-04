@@ -1,5 +1,22 @@
 # 指定PIPS分上昇するか下降するかの2値分類問題
 
+## 実行方法
+### モデル生成
+`python3 bin/create_model.py -s {symbol} -t {term} -p {base_pips} -f {from_year} -u {until_year} -m {model_type} -c {script_mode}`
+
+- symbol: 大文字英字のシンボル（USDJPY）
+- term: 時間足（1分足なら、M1）
+- base_pips: 目的変数となる指定PIPS
+- from_year: データ読み込み開始年
+- until_year: データ読み込み終了年
+- model_type: 使用モデル
+    - `decision_tree`: 決定木
+    - `random_forest`: ランダムフォレスト
+script_mode: スクリプトモード
+    - 1: モデル生成 & 保存しない
+    - 2: モデル生成 & 保存
+    - 3: 既存訓練済みモデルに特徴料を投入して予測のみ行う
+
 ## 環境構築（MAC OSの場合）
 ### python実行仮想環境を作成
 1. 仮想環境作成
