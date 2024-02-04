@@ -28,7 +28,8 @@ def main():
 
             file_prefix = "DAT_ASCII_{0}_{1}_{2}".format(SYMBOL.upper(), TERM, year)
             shutil.unpack_archive(file_prefix+".zip")
-            shutil.move(file_prefix+".csv", "./{}/".format(SYMBOL))
+            shutil.copy(file_prefix+".csv", "./{0}/{1}".format(SYMBOL, file_prefix+".csv"))
+            os.remove(file_prefix+".csv")
             os.remove(file_prefix+".txt")
             os.remove(file_prefix+".zip")
             
