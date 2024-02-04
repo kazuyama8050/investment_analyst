@@ -16,6 +16,10 @@ END_YEAR = int(args[4])
 term_mapping = {
     "M1": TF.ONE_MINUTE
 }
+
+if os.path.exists("./{}".format(SYMBOL)):
+    os.mkdir("./{}".format(SYMBOL))
+
 for year in range(START_YEAR,END_YEAR+1):
     dl(year=year, month=None, pair=SYMBOL, platform=P.GENERIC_ASCII, time_frame=term_mapping[TERM])
 
