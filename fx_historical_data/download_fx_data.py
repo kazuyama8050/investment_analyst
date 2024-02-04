@@ -1,3 +1,8 @@
+"""
+FXデータダウンロードスクリプト
+※ fx_historical_dataディレクトリから実行すること
+"""
+
 import os,io
 import zipfile
 import shutil
@@ -21,7 +26,7 @@ def main():
         }
 
         if os.path.exists("./{}".format(SYMBOL)) is False:
-            os.mkdir("./{}".format(SYMBOL))
+            os.mkdir(SYMBOL)
 
         for year in range(START_YEAR,END_YEAR+1):
             dl(year=year, month=None, pair=SYMBOL, platform=P.GENERIC_ASCII, time_frame=term_mapping[TERM])
