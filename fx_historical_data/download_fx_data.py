@@ -1,23 +1,23 @@
-import os,io
-import zipfile
-import shutil
-
-from histdata import download_hist_data as dl
-from histdata.api import Platform as P, TimeFrame as TF
-
-import sys,traceback
-args = sys.argv
-
-SYMBOL = args[1]
-TERM = args[2]
-START_YEAR = int(args[3])
-END_YEAR = int(args[4])
-
-term_mapping = {
-    "M1": TF.ONE_MINUTE
-}
-
 try:
+    import os,io
+    import zipfile
+    import shutil
+
+    from histdata import download_hist_data as dl
+    from histdata.api import Platform as P, TimeFrame as TF
+
+    import sys,traceback
+    args = sys.argv
+
+    SYMBOL = args[1]
+    TERM = args[2]
+    START_YEAR = int(args[3])
+    END_YEAR = int(args[4])
+
+    term_mapping = {
+        "M1": TF.ONE_MINUTE
+    }
+
     if os.path.exists("./{}".format(SYMBOL)):
         os.mkdir("./{}".format(SYMBOL))
 
@@ -29,5 +29,8 @@ try:
         shutil.move(file_prefix+".csv", "./{}/".format(SYMBOL))
         os.remove(file_prefix+".txt")
         os.remove(file_prefix+".zip")
+        
+        print("{} done".format(year))
 except Exception as e:
+    print(e)
     print(traceback.format_exc())
