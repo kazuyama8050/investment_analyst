@@ -20,7 +20,7 @@ def main():
             "M1": TF.ONE_MINUTE
         }
 
-        if os.path.exists("./{}".format(SYMBOL)):
+        if os.path.exists("./{}".format(SYMBOL)) is False:
             os.mkdir("./{}".format(SYMBOL))
 
         for year in range(START_YEAR,END_YEAR+1):
