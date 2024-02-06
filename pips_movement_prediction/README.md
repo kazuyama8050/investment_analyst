@@ -31,6 +31,11 @@ script_mode: スクリプトモード
     - `conda install -c conda-forge ta-lib`
 
 
+### vimのインストール
+以下からダウンロード
+
+https://www.vim.org/download.php
+
 ## Appendix
 ### Python仮想環境でJupyterを立ち上げる（MAC OSの場合）
 1. 仮想環境に切り替え

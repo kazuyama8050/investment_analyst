@@ -6,6 +6,7 @@ FXデータダウンロードスクリプト
 import os,io
 import zipfile
 import shutil
+import pandas as pd
 
 from histdata import download_hist_data as dl
 from histdata.api import Platform as P, TimeFrame as TF
@@ -33,7 +34,8 @@ def main():
 
             file_prefix = "DAT_ASCII_{0}_{1}_{2}".format(SYMBOL.upper(), TERM, year)
             shutil.unpack_archive(file_prefix+".zip")
-            shutil.copy(file_prefix+".csv", "./{0}/{1}".format(SYMBOL, file_prefix+".csv"))
+            df = pd.read_csv(file_prefix+".csv", header=None, names=["datetime", 'open', 'higher', "lower", "close", "volume"], sep=";")
+            df.to_csv(os.path.join(SYMBOL, file_prefix+".csv"), index=False)
             os.remove(file_prefix+".csv")
             os.remove(file_prefix+".txt")
             os.remove(file_prefix+".zip")
@@ -45,3 +47,6 @@ def main():
         
 if __name__ == "__main__":
     main()
+    # filepath = "usdjpy/DAT_ASCII_{0}_{1}_{2}.csv".format("USDJPY", "M1", 2015)
+    # df = pd.read_csv(filepath, sep=";")
+    # print(df)

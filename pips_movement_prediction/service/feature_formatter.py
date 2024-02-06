@@ -10,7 +10,7 @@ class FeatureFormatter():
         
     def read_history_data_by_year(self, yyyy):
         historical_filename = f"DAT_ASCII_{self._symbol}_{self._term}_{yyyy}.csv"
-        df = pd.read_csv(os.path.join(self._historical_dir, historical_filename), header=None, names=["datetime", 'open', 'higher', "lower", "close", "volume"])
+        df = pd.read_csv(os.path.join(self._historical_dir, historical_filename))
         df = df[["datetime", "close"]]
         return df
         
@@ -76,9 +76,9 @@ class FeatureFormatter():
                 comparison_price = df_list[y]["close"]
                 if comparison_price - target_price >= base_pips:  ## pips以上価格が上昇した時
                     df_list[i]["movement"] = 1
-                    break;
+                    break
                 if target_price - comparison_price >= base_pips:  ## pips以上価格が下落した時
                     df_list[i]["movement"] = 0
-                    break;
+                    break
                 continue
         return pd.DataFrame(df_list)
