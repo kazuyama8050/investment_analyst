@@ -91,9 +91,9 @@ def main():
         
         logger.info("Model Traning Start.")
         if MODEL_TYPE == "decision_tree":
-            model = DecisionTree(logger, os.path.join(app_dir, config.get("model", "decision_tree_model_filepath")))
+            model = DecisionTree(logger, os.path.join(app_dir, config.get("model", "decision_tree_model_filepath").format(symbol=SYMBOL, term=TRAIN_DATA_TERM, base_pips=BASE_PIPS)))
         elif MODEL_TYPE == "random_forest":
-            model = RandomForest(logger, os.path.join(app_dir, config.get("model", "random_forest_model_filepath")))
+            model = RandomForest(logger, os.path.join(app_dir, config.get("model", "random_forest_model_filepath").format(symbol=SYMBOL, term=TRAIN_DATA_TERM, base_pips=BASE_PIPS)))
         trained_model = model.train(X_train, y_train)
         logger.info("Model Traning Done.")
         logger.info("Prediction Start.")
@@ -135,9 +135,9 @@ def only_prediction():
     Y = history_df[[objective_column]]
     
     if MODEL_TYPE == "decision_tree":
-        model = DecisionTree(logger, os.path.join(app_dir, config.get("model", "decision_tree_model_filepath")))
+        model = DecisionTree(logger, os.path.join(app_dir, config.get("model", "decision_tree_model_filepath").format(symbol=SYMBOL, term=TRAIN_DATA_TERM, base_pips=BASE_PIPS)))
     elif MODEL_TYPE == "random_forest":
-        model = RandomForest(logger, os.path.join(app_dir, config.get("model", "random_forest_model_filepath")))
+        model = RandomForest(logger, os.path.join(app_dir, config.get("model", "random_forest_model_filepath").format(symbol=SYMBOL, term=TRAIN_DATA_TERM, base_pips=BASE_PIPS)))
     trained_model = model.load_model()
     logger.info("Model Load Done.")
     logger.info("Prediction Start.")
