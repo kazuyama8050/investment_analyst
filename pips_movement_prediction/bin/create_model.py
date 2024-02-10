@@ -5,7 +5,6 @@ import configparser
 import traceback
 from sklearn.model_selection import train_test_split
 from argparse import ArgumentParser
-import MetaTrader5 as mt5
 
 current_script_path = os.path.abspath(__file__)
 app_home = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
@@ -150,7 +149,6 @@ def _set_feature_data(featureFormatter, history_df):
     history_df = featureFormatter.set_history_diff(history_df, MOVING_HISTORY_TERM_LIST)
     logger.info("Set History Diff Done.")
     
-    print(history_df)
     history_df = featureFormatter.set_moving_average_indicators(history_df, MOVING_AVERAGE_TERM_LIST)
     logger.info("Set Moving Average Indicators Done.")
     

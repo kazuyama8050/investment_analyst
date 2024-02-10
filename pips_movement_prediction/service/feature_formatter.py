@@ -1,6 +1,5 @@
 import os
 import pandas as pd
-import talib
 
 class FeatureFormatter():
     def __init__(self, symbol, term, historical_dir):
@@ -41,7 +40,12 @@ class FeatureFormatter():
             short_window = short_window_list[i]
             long_window = long_window_list[i]
             signal_window = signal_window_list[i]
-            df[f"macd_{short_window}_{long_window}_{signal_window}"], df[f"signal_line_{short_window}_{long_window}_{signal_window}"], _ = talib.MACD(df["close"], fastperiod=short_window, slowperiod=long_window, signalperiod=signal_window)
+            
+            short_ema = df["close"].ewm(span=short_window, adjust=False).mean()
+            long_ema = df["close"].ewm(span=long_window, adjust=False).mean()
+            
+            df[f"macd_{short_window}_{long_window}_{signal_window}"] = short_ema - long_ema
+            df[f"signal_line_{short_window}_{long_window}_{signal_window}"] = df[f"macd_{short_window}_{long_window}_{signal_window}"].ewm(span=signal_window, adjust=False).mean()
             
             ## MACDとMACDシグナルとの価格差
             df[f"macd_signal_diff_{short_window}_{long_window}_{signal_window}"] = df[f"macd_{short_window}_{long_window}_{signal_window}"] - df[f"signal_line_{short_window}_{long_window}_{signal_window}"]
@@ -51,8 +55,9 @@ class FeatureFormatter():
 
             ## MACDシグナルと終値との価格差
             df[f"signal_close_diff_{short_window}_{long_window}_{signal_window}"] = df[f"signal_line_{short_window}_{long_window}_{signal_window}"] - df["close"]
-
+            
         return df
+        
     
     def set_bb_indicators(self, df, bb_term_list, bb_sigma_list):
         for term in bb_term_list:
