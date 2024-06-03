@@ -5,8 +5,8 @@ from email.mime.application import MIMEApplication
 import traceback
 
 class MailHandler():
-    FROM_ADDRESS = "kazuki118050@gmail.com"
-    MY_PASSWORD = "bsok wlbz usbr lpse"
+    FROM_ADDRESS = ""
+    MY_PASSWORD = ""
 
     @staticmethod
     def send_mail(to_address, subject, mail_body):
