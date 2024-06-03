@@ -32,6 +32,6 @@ class JpSymbolHandler():
         df = df.loc[df["market"].str.contains("プライム|グロース|スタンダード") == True]
         df["symbol"] = df['symbol'].astype(str) + '.T'
         df["country"] = JpSymbolHandler.JP_SYMBOL
-        return df.to_dict(orient='records')
+        return df
     
     

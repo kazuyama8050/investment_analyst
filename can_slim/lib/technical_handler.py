@@ -38,15 +38,29 @@ rs_termly_dict = {
 
 
 class TechnicalHandler:
-    def __init__(self, logger, symbol_for_rs_term):
+    def __init__(self, logger, symbol_for_rs_term, termly_stock_data_filepath):
         self.logger = logger
         self.new_rs_termly_dict = self.get_termly_sales_date(symbol_for_rs_term)
+        self.termly_stock_data_filepath = termly_stock_data_filepath
+        
+    def write_termly_stock_data(self, termly_stock_data_list):
+        df = pd.DataFrame(termly_stock_data_list)
+        print(df)
+        df.to_csv(self.termly_stock_data_filepath, index=False)
+        
+    def read_termly_stock_data(self):
+        return pd.read_csv(self.termly_stock_data_filepath)
         
     def get_termly_stock_data(self, symbol_list, process_num=1):
         try:
             symbol_seg_list = []
             symbol_seg = []
             cnt = 0
+            """
+            100件ごとに分割する
+            """
+            symbol_list = symbol_list[0:100]
+            all_cnt = len(symbol_list)
             for symbol in symbol_list:
                 symbol_seg.append(symbol)
                 cnt += 1
@@ -58,9 +72,9 @@ class TechnicalHandler:
             symbol_seg = []
                         
             cnt = 0
+            results = []
             for symbols in symbol_seg_list:
                 stock_close_data = self.download_stock_close_data(symbols, DateFormat.date_to_string_format(one_year_ago), DateFormat.date_to_string_format(today))
-                results = []
                 with concurrent.futures.ProcessPoolExecutor(max_workers=process_num) as executor:
                     while True:
                         futures = [executor.submit(self.set_stock_data_for_multi_process, symbol, stock_close_data) for symbol in symbols]
@@ -68,11 +82,12 @@ class TechnicalHandler:
                             result = future.result()
                             cnt += 1
                             results.append(result)
-                        
+                            if cnt % 1000:
+                                print("done: {}/{}".format(cnt, all_cnt))
+                                                    
                         if len(symbols) <= len(results): break
-                yield results
                 
-            yield results            
+            return results            
         except Exception as e:
             self.logger.info(traceback.format_exc())
             
@@ -116,7 +131,7 @@ class TechnicalHandler:
         ret_dict["c252"] = 0.0
         return ret_dict
         
-            
+        
     def download_stock_close_data(self, symbols, before, after):
         yahoo_financials = YahooFinancials(symbols)
         stock_data = yahoo_financials.get_historical_price_data(before, after, "daily")
@@ -139,17 +154,21 @@ class TechnicalHandler:
         return ret_dict
         
             
-            
     def get_termly_sales_date(self, symbol):
-        stock_dict = self.download_stock_close_data(symbol, DateFormat.date_to_string_format(one_year_ago), DateFormat.date_to_string_format(today))
-        new_rs_termly_dict = {}
-        for k, v in rs_termly_dict.items():
-            if k == "c":
-                new_rs_termly_dict[k] = self.get_nearly_latest_sales_date(v, stock_dict, symbol)
-            else:
-                new_rs_termly_dict[k] = self.get_nearly_sales_date(v, stock_dict, symbol)
+        try:
+            stock_dict = self.download_stock_close_data(symbol, DateFormat.date_to_string_format(one_year_ago), DateFormat.date_to_string_format(today))
+            new_rs_termly_dict = {}
+            for k, v in rs_termly_dict.items():
+                if k == "c":
+                    new_rs_termly_dict[k] = self.get_nearly_latest_sales_date(v, stock_dict, symbol)
+                else:
+                    new_rs_termly_dict[k] = self.get_nearly_sales_date(v, stock_dict, symbol)
 
-        return new_rs_termly_dict
+            return new_rs_termly_dict
+        
+        except Exception as e:
+            self.logger.info("Error symbol={0}, msg={1}".format(symbol, e))
+            self.logger.info(traceback.format_exc())
             
     def get_nearly_sales_date(self, default_date, stock_dict, symbol):
         for i in range(0,8):

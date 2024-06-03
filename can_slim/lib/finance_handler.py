@@ -27,14 +27,23 @@ three_month_later = today + relativedelta(months=3)
 class FinanceHandler:
     REVENUE_SCALE = 1000000  ## 売上高は百万単位
     REVENUE_DECIMAL_SCALE = 0
-    def __init__(self, logger):
+    def __init__(self, logger, pl_filepath):
         self.logger = logger
         self.default_report_date = DateFormat.string_to_date_format("1970-01-01")
+        self.pl_filepath = pl_filepath
+        
+    def write_pl_data_to_csv(self, pl_data_list):
+        df = pd.DataFrame(pl_data_list)
+        df.to_csv(self.pl_filepath, index=False)
+        
+    def get_pl_data_from_csv(self):
+        return pd.read_csv(self.pl_filepath)
         
     def get_pl_data(self, symbol_list, process_num=1):
         try:
             results = []
             cnt = 0
+            all_cnt = len(symbol_list)
             with concurrent.futures.ProcessPoolExecutor(max_workers=process_num) as executor:
                 while True:
                     futures = [executor.submit(self.set_necessary_pl_data_by_multi_process, symbol) for symbol in symbol_list]
@@ -43,13 +52,12 @@ class FinanceHandler:
                         result = future.result()
                         results.append(result)
                         
-                        if len(results) >= 100:
-                            yield results
-                            results = []
+                        if cnt % 100 == 0:
+                            self.logger.info("get pl data {}/{}".format(cnt, all_cnt))
                         
-                    if cnt >= len(symbol_list): break
+                    if cnt >= all_cnt: break
                 
-            yield results            
+            return results
         except Exception as e:
             self.logger.info(traceback.format_exc())
         

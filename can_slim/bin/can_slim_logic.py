@@ -25,10 +25,10 @@ from batch_settings import BatchSettings
 from db_handler import DbHandler
 from date_format import DateFormat
 from can_slim_logic_handler import CanslimLogicHandler
-from finance_db_handler import FinanceDbHandler
-from technical_db_handler import TechnicalDbHandler
 from jp_symbol_handler import JpSymbolHandler
 from symbol_handler import SymbolHandler
+from finance_handler import FinanceHandler
+from technical_handler import TechnicalHandler
 from mail_handler import MailHandler
 
 def get_options():
@@ -40,41 +40,37 @@ def get_options():
 
 options = get_options()
 
-config_usa = configparser.ConfigParser()
-config_usa.read(os.path.join(app_dir, "conf/can_slim_usa.conf"))
-config_jp = configparser.ConfigParser()
-config_jp.read(os.path.join(app_dir, "conf/can_slim_jp.conf"))
+config = configparser.ConfigParser()
+config.read(os.path.join(app_dir, "conf/can_slim_{}.conf".format(options.country)))
 credentials_config = configparser.ConfigParser()
 credentials_config.read(os.path.join(app_dir, "conf/credentials-" + options.env + ".conf"))
 
 logger = BatchSettings.get_logger(app_dir, app_home)
 
 today = datetime.today().date()
+COUNTRY = options.country
 
 def main():
     try:
-        db = get_db_connection(credentials_config, "investment_analyst")
-        session = db.get_session()
-        
-        financeDbHandler = FinanceDbHandler(session)
-        technicalDbHandler = TechnicalDbHandler(session)
         canslimLogicHandler = CanslimLogicHandler(logger)
-        symbolHandler = SymbolHandler(session)
+        symbolHandler = SymbolHandler(config.get("output", "symbol_data_filepath"))
+        financeHandler = FinanceHandler(logger, config.get("output", "pl_data_filepath"))
+        technicalHandler = TechnicalHandler(logger, config.get("symbol", "symbol_for_rs_term"), config.get("output", "termly_stock_data_filepath"))
         
-        finance_data = financeDbHandler.find_valid_finances(options.country)
-        if len(finance_data) == 0:
-            logger.info("not found valid finance data, option.country={}".format(options.country))
+        finance_df = financeHandler.get_pl_data_from_csv()
+        finance_df = finance_df.loc[finance_df["is_valid"] == 1]
+        if len(finance_df) == 0:
+            logger.info("not found valid finance data, option.country={}".format(COUNTRY))
             return
         
-        finance_df = pd.DataFrame(finance_data)
         calced_finance_df = canslimLogicHandler.mainLogic(finance_df)
         
-        stock_data = technicalDbHandler.find_valid_stocks(options.country)
-        if len(stock_data) == 0:
-            logger.info("not found valid stock data, option.country={}".format(options.country))
+        stock_df = technicalHandler.read_termly_stock_data()
+        stock_df = stock_df.loc[stock_df["is_valid"] == 1]
+        if len(stock_df) == 0:
+            logger.info("not found valid stock data, option.country={}".format(COUNTRY))
             return
         
-        stock_df = pd.DataFrame(stock_data)
         calced_stock_df = canslimLogicHandler.relative_strength_logic(stock_df)
         
         finance_loose_result_symbols, rs_loose_result_symbols = judge_can_slim_loose_logic(calced_finance_df, calced_stock_df)
@@ -83,9 +79,10 @@ def main():
         finance_tight_result_symbols, rs_tight_result_symbols = judge_can_slim_tight_logic(calced_finance_df, calced_stock_df)
         finance_and_rs_tight_result_symbols = list(set(finance_tight_result_symbols) & set(rs_tight_result_symbols))
         
-        symbol_infos = {}
-        for symbol_info_tuple in symbolHandler.find_symbol_infos_by_symbols(finance_loose_result_symbols):
-            symbol_infos[symbol_info_tuple.symbol] = symbol_info_tuple.name
+        symbol_infos_df = symbolHandler.read_all_symbol_infos()
+        symbol_infos_df = symbol_infos_df[["symbol", "name"]]
+        symbol_infos_df = symbol_infos_df.loc[symbol_infos_df["symbol"].isin(finance_loose_result_symbols)]
+        symbol_infos = dict(zip(symbol_infos_df["symbol"], symbol_infos_df["name"]))
             
         if len(symbol_infos) == 0:
             logger.info("no symbol match of cansllim logic")
@@ -108,17 +105,15 @@ def main():
         logger.info("send email done")
         
     except Exception as e:
-        session.rollback()
-        db.close_session()
         logger.info(traceback.format_exc())
         
-        mail_body_template = MailHandler.read_mail_body_template(os.path.join(app_dir, "mail", "can_slim_system_error_mail_format.txt"))
-        mail_body = mail_body_template.format(
-            date = today,
-            app_name = app_home,
-            error_msg = traceback.format_exc()
-        )
-        MailHandler.send_mail(credentials_config.get("mail", "to_address"), "CANSLIMシステムエラー通知", mail_body)
+        # mail_body_template = MailHandler.read_mail_body_template(os.path.join(app_dir, "mail", "can_slim_system_error_mail_format.txt"))
+        # mail_body = mail_body_template.format(
+        #     date = today,
+        #     app_name = app_home,
+        #     error_msg = traceback.format_exc()
+        # )
+        # MailHandler.send_mail(credentials_config.get("mail", "to_address"), "CANSLIMシステムエラー通知", mail_body)
         
         sys.exit(1)
         

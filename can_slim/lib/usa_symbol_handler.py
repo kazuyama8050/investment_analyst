@@ -55,4 +55,4 @@ class UsaSymbolHandler():
         merged_df = pd.concat([nyse_companies, nasdaq_companies], ignore_index=True, sort=False)
         merged_df = merged_df.loc[(merged_df["symbol"].str.contains('\.|\$') == False)]
         merged_df["country"] = UsaSymbolHandler.USA_SYMBOL
-        return merged_df.to_dict(orient='records')
+        return merged_df
