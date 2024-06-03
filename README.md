@@ -3,7 +3,6 @@
 ## can_slim
 CANSLIMロジックを実行するプログラム
 
-バッチ処理で定期実行されることを想定している
 
 ## fx_historical_data
 FXの過去データを格納している
