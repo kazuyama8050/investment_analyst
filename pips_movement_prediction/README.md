@@ -17,9 +17,13 @@ script_mode: スクリプトモード
     - 2: モデル生成 & 保存
     - 3: 既存訓練済みモデルに特徴料を投入して予測のみ行う
 
-## 環境構築（MAC OSの場合）
+※ モデル訓練は低スペックサーバだと厳しいので、cloud経由で転送する<br>
+gitでも容量オーバーとなるので、google driveを活用する
+
+## 環境構築
 ### python実行仮想環境を作成
-1. 仮想環境作成
+1. anacondaをインストールしていない場合はインストール
+2. 仮想環境作成
     - `conda create -n pyenv pip python`
     - 以下で環境を切り替えられる
         - `conda activate pyenv`
@@ -29,12 +33,9 @@ script_mode: スクリプトモード
 ### ライブラリのインストール
 - talib
     - `conda install -c conda-forge ta-lib`
+- tensorflow
+    - `conda install -c apple tensorflow`
 
-
-### vimのインストール
-以下からダウンロード
-
-https://www.vim.org/download.php
 
 ## Appendix
 ### Python仮想環境でJupyterを立ち上げる（MAC OSの場合）

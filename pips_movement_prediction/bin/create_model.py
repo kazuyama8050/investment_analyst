@@ -18,6 +18,8 @@ from batch_settings import BatchSettings
 from feature_formatter import FeatureFormatter
 from decision_tree import DecisionTree
 from random_forest import RandomForest
+from light_gbm import LightGbm
+from neural_network import NeuralNetwork
 
 config = configparser.ConfigParser()
 config.read(os.path.join(app_dir, "conf/pips_movement_prediction.conf"))
@@ -34,6 +36,7 @@ def get_options():
     parser.add_argument("-u", "--until_year", dest="until_year", action="store", help="until_year", required=True, type=int)
     parser.add_argument("-m", "--model_type", dest="model_type", action="store", help="model_type", default="decision_tree", type=str)
     parser.add_argument("-c", "--script_mode", dest="script_mode", action="store", help="script_mode", default=1, type=int)
+    parser.add_argument("-d", "--deviation", dest="deviation", action="store", help="deviation", default=1, type=int)
     return parser.parse_args()
 
 options = get_options()
@@ -44,21 +47,27 @@ BASE_PIPS = options.base_pips
 TRAIN_DATA_START_YEAR = options.from_year
 TRAIN_DATA_END_YEAR = options.until_year
 SCRIPT_MODE = options.script_mode
+DEVIATION = options.deviation
 
 model_types = {
     "decision_tree": "決定木",
-    "random_forest": "ランダムフォレスト"
+    "random_forest": "ランダムフォレスト",
+    "light_gbm": "LightGBM",
+    "neural_network": "ニューラルネットワーク",
 }
 MODEL_TYPE = options.model_type
 
-MOVING_HISTORY_TERM_LIST = [10, 25, 50, 75, 125, 200]
-MOVING_AVERAGE_TERM_LIST = [10, 25, 50, 75, 125, 200]
-BB_TERM_LIST = [10, 25, 50, 75, 125, 200]
+MOVING_HISTORY_TERM_LIST = [25, 50, 75, 125, 150, 175, 200, 225, 250]
+MOVING_AVERAGE_TERM_LIST = [25, 50, 75, 125, 150, 175, 200, 225, 250]
+BB_TERM_LIST = [25, 50, 75, 125, 150, 175, 200, 225, 250]
 BB_SIGMA_LIST = [1, 2, 3, 4]
 
 MACD_SHORT_WINDOW_LIST = [12, 26, 50]
 MACD_LONG_WINDOW_LIST = [26, 12, 200]
 MACD_SIGNAL_WINDOW_LIST = [9, 9, 9]
+
+STOCHASTICS_PERIOD_LIST = [5,9,14]
+STOCHASTICS_MA_LIST = [3,3,3]  ## 一般的には3固定
 
 def main():
     try:
@@ -68,33 +77,50 @@ def main():
         featureFormatter = FeatureFormatter(
             SYMBOL, TRAIN_DATA_TERM, os.path.join(project_dir, config.get("history_data", "dirname").format(symbol=SYMBOL.lower())) 
         )
+        # featureFormatter.get_ticker_history("DGS10", "2010-01-01", "2023-02-01")
+        # sys.exit()
         history_df = featureFormatter.read_history_data(TRAIN_DATA_START_YEAR, TRAIN_DATA_END_YEAR)
         logger.info("Read Historical Data From {0} To {1} Done. size: {2}".format(TRAIN_DATA_START_YEAR, TRAIN_DATA_END_YEAR, len(history_df)))
         
         """
         特徴量を算出
         """
-        history_df = _set_feature_data(featureFormatter, history_df)
+        history_df, feature_columns = _set_feature_data(featureFormatter, history_df)
         
         """
         特徴量を選出
         """
-        train_columns = _get_train_columns()
         objective_column = "movement"
 
         history_df = history_df.dropna()
+        logger.info("Create Feature Data All Size: {}".format(len(history_df)))
+        ## 二値分類のデータ数を統一する
+        min_size = min(len(history_df.loc[history_df[objective_column] == 1]), len(history_df.loc[history_df[objective_column] == 0]))
+        history_df_a = history_df[history_df[objective_column] == 1].sample(n=min_size, random_state=42)
+        history_df_b = history_df[history_df[objective_column] == 0].sample(n=min_size, random_state=42)
+        history_df = pd.concat([history_df_a, history_df_b]).reset_index(drop=True)
+        history_df = history_df.sample(frac=1, random_state=0)
         logger.info("Create Feature Data Done. upper_pips_movement_size: {0}, lower_pips_movement_size: {1}".format(len(history_df.loc[history_df[objective_column] == 1]), len(history_df.loc[history_df[objective_column] == 0])))
         
-        X = history_df[train_columns]
+        X = history_df[feature_columns]
         Y = history_df[[objective_column]]
-        X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.3, random_state=42)
         
         logger.info("Model Traning Start.")
         if MODEL_TYPE == "decision_tree":
-            model = DecisionTree(logger, os.path.join(app_dir, config.get("model", "decision_tree_model_filepath").format(symbol=SYMBOL, term=TRAIN_DATA_TERM, base_pips=BASE_PIPS)))
+            model = DecisionTree(logger, os.path.join(app_dir, config.get("model", "decision_tree_model_filepath").format(symbol=SYMBOL, term=TRAIN_DATA_TERM, base_pips=str(BASE_PIPS).replace(".", ""))))
         elif MODEL_TYPE == "random_forest":
-            model = RandomForest(logger, os.path.join(app_dir, config.get("model", "random_forest_model_filepath").format(symbol=SYMBOL, term=TRAIN_DATA_TERM, base_pips=BASE_PIPS)))
-        trained_model = model.train(X_train, y_train)
+            model = RandomForest(logger, os.path.join(app_dir, config.get("model", "random_forest_model_filepath").format(symbol=SYMBOL, term=TRAIN_DATA_TERM, base_pips=str(BASE_PIPS).replace(".", ""))))
+        elif MODEL_TYPE == "light_gbm":
+            model = LightGbm(logger, os.path.join(app_dir, config.get("model", "light_gbm_model_filepath").format(symbol=SYMBOL, term=TRAIN_DATA_TERM, base_pips=str(BASE_PIPS).replace(".", ""))))
+        elif MODEL_TYPE == "neural_network":
+            model = NeuralNetwork(logger, os.path.join(app_dir, config.get("model", "neural_network_model_filepath").format(symbol=SYMBOL, term=TRAIN_DATA_TERM, base_pips=str(BASE_PIPS).replace(".", ""))))
+            
+        if MODEL_TYPE == "light_gbm":
+            X_val, X_test, y_val, y_test = train_test_split(X_test, y_test, test_size=0.3, random_state=0)
+            trained_model = model.train(X_train, X_val, y_train, y_val)
+        else:
+            trained_model = model.train(X_train, y_train)
         logger.info("Model Traning Done.")
         logger.info("Prediction Start.")
         model.prediction(trained_model, X_test, y_test)
@@ -120,24 +146,27 @@ def only_prediction():
     """
     特徴量を算出
     """
-    history_df = _set_feature_data(featureFormatter, history_df)
+    history_df, feature_columns = _set_feature_data(featureFormatter, history_df)
     
     """
     特徴量を選出
     """
-    train_columns = _get_train_columns()
     objective_column = "movement"
-
     history_df = history_df.dropna()
+    history_df.head(1000).to_csv("test.csv", index=False)
+    logger.info("Create Feature Data All Size: {}".format(len(history_df)))
+    history_df = history_df.sample(frac=1, random_state=0)
     logger.info("Create Feature Data Done. upper_pips_movement_size: {0}, lower_pips_movement_size: {1}".format(len(history_df.loc[history_df[objective_column] == 1]), len(history_df.loc[history_df[objective_column] == 0])))
     
-    X = history_df[train_columns]
+    X = history_df[feature_columns]
     Y = history_df[[objective_column]]
     
     if MODEL_TYPE == "decision_tree":
-        model = DecisionTree(logger, os.path.join(app_dir, config.get("model", "decision_tree_model_filepath").format(symbol=SYMBOL, term=TRAIN_DATA_TERM, base_pips=BASE_PIPS)))
+        model = DecisionTree(logger, os.path.join(app_dir, config.get("model", "decision_tree_model_filepath").format(symbol=SYMBOL, term=TRAIN_DATA_TERM, base_pips=str(BASE_PIPS).replace(".", ""))))
     elif MODEL_TYPE == "random_forest":
-        model = RandomForest(logger, os.path.join(app_dir, config.get("model", "random_forest_model_filepath").format(symbol=SYMBOL, term=TRAIN_DATA_TERM, base_pips=BASE_PIPS)))
+        model = RandomForest(logger, os.path.join(app_dir, config.get("model", "random_forest_model_filepath").format(symbol=SYMBOL, term=TRAIN_DATA_TERM, base_pips=str(BASE_PIPS).replace(".", ""))))
+    elif MODEL_TYPE == "light_gbm":
+        model = LightGbm(logger, os.path.join(app_dir, config.get("model", "light_gbm_model_filepath").format(symbol=SYMBOL, term=TRAIN_DATA_TERM, base_pips=str(BASE_PIPS).replace(".", ""))))
     trained_model = model.load_model()
     logger.info("Model Load Done.")
     logger.info("Prediction Start.")
@@ -146,47 +175,34 @@ def only_prediction():
         
 
 def _set_feature_data(featureFormatter, history_df):
-    history_df = featureFormatter.set_history_diff(history_df, MOVING_HISTORY_TERM_LIST)
+    column_list = []
+    
+    history_df, history_diff_columns = featureFormatter.set_history_diff(history_df, MOVING_HISTORY_TERM_LIST)
+    column_list += history_diff_columns
     logger.info("Set History Diff Done.")
     
-    history_df = featureFormatter.set_moving_average_indicators(history_df, MOVING_AVERAGE_TERM_LIST)
+    history_df, ma_columns = featureFormatter.set_moving_average_indicators(history_df, MOVING_AVERAGE_TERM_LIST)
+    column_list += ma_columns
     logger.info("Set Moving Average Indicators Done.")
     
     
-    history_df = featureFormatter.set_macd_indicators(history_df, MACD_SHORT_WINDOW_LIST, MACD_LONG_WINDOW_LIST, MACD_SIGNAL_WINDOW_LIST)
+    history_df, macd_columns = featureFormatter.set_macd_indicators(history_df, MACD_SHORT_WINDOW_LIST, MACD_LONG_WINDOW_LIST, MACD_SIGNAL_WINDOW_LIST)
+    column_list += macd_columns
     logger.info("Set MACD Indicators Done.")
     
-    history_df = featureFormatter.set_bb_indicators(history_df, BB_TERM_LIST, BB_SIGMA_LIST)
-    logger.info("Set BB Indicators Done.")
+    # history_df, bb_columns = featureFormatter.set_bb_indicators(history_df, BB_TERM_LIST, BB_SIGMA_LIST)
+    # column_list += bb_columns
+    # logger.info("Set BB Indicators Done.")
     
-    history_df = featureFormatter.set_pips_moving_direction(history_df, BASE_PIPS)
+    history_df, stochastics_columns = featureFormatter.set_stochastics_indicators(history_df, STOCHASTICS_PERIOD_LIST, STOCHASTICS_MA_LIST)
+    column_list += stochastics_columns
+    logger.info("Set Stochastics Indicators Done.")
+    
+    history_df = featureFormatter.set_pips_moving_direction(history_df, BASE_PIPS, DEVIATION)
     logger.info("Set Pips Moving Direction Done.")
     
-    return history_df
-
-def _get_train_columns():
-    train_columns = []
-    ## 終値
-    for term in MOVING_HISTORY_TERM_LIST:
-        train_columns.append(f"mh_{term}")
-    ## 移動平均
-    for term in MOVING_AVERAGE_TERM_LIST:
-        train_columns.append(f"ma_close_{term}")
-        train_columns.append(f"ma_diff_{term}")
-    ## MACD
-    for i in range(len(MACD_SHORT_WINDOW_LIST)):
-        short_win = MACD_SHORT_WINDOW_LIST[i]
-        long_win = MACD_LONG_WINDOW_LIST[i]
-        signal_win = MACD_SIGNAL_WINDOW_LIST[i]
-        train_columns.append(f"macd_signal_diff_{short_win}_{long_win}_{signal_win}")
-        train_columns.append(f"macd_close_diff_{short_win}_{long_win}_{signal_win}")
-        train_columns.append(f"signal_close_diff_{short_win}_{long_win}_{signal_win}")
-    ## BB
-    for term in BB_TERM_LIST:
-        for sigma in BB_SIGMA_LIST:
-            train_columns.append(f"upper_bb_close_{term}_{sigma}")
-            train_columns.append(f"lower_bb_close_{term}_{sigma}")
-    return train_columns
+    column_list.append("volume")
+    return history_df, sorted(column_list)
 
 if __name__ == "__main__":
     logger.info("start create_model")

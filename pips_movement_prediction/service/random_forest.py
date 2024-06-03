@@ -43,7 +43,8 @@ class RandomForest():
         importance_df = pd.DataFrame({'Feature': X_test.columns, 'Importance': feature_importances})
         importance_df = importance_df.sort_values(by='Importance', ascending=False)
         self._logger.info("特徴量の重要度:\n")
-        self._logger.info(importance_df)
+        for index, row in importance_df.iterrows():
+            self._logger.info("{0}: {1}".format(row["Feature"], row["Importance"]))
 
 
 
